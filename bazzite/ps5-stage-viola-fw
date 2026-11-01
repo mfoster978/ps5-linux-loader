@@ -1,0 +1,57 @@
+#!/bin/bash
+# Temporary PS5 Pro v1.8.9 workaround maintained in the mfoster978 fork.
+# Put the eight Viola GPU firmware files into initrd.img with the appended
+# newc archive aligned to the four-byte boundary required by the kernel.
+#
+# Stop using this copy after VivaLaVent/ps5-bazzite-deck ships the equivalent
+# alignment fix in its official ps5-stage-viola-fw.
+set -eu
+
+E=
+for d in /boot/efi /efi; do
+    [ -f "$d/initrd.img" ] && {
+        E=$d
+        break
+    }
+done
+[ -n "$E" ] || exit 0
+
+SRC=$E/lib/firmware/amdgpu
+FILES="viola_ce viola_me viola_mec viola_mec2 viola_pfp viola_rlc viola_sdma viola_sdma1"
+for f in $FILES; do
+    [ -s "$SRC/$f.bin" ] || exit 0
+done
+
+command -v cpio >/dev/null || {
+    echo "PS5 Pro: Viola firmware found, but cpio is missing: can't add it to the initrd"
+    exit 1
+}
+
+STATE=/var/lib/ps5-bazzite-deck/viola-initrd.sha256
+cur=$(sha256sum "$E/initrd.img" | cut -d' ' -f1)
+[ -f "$STATE" ] && [ "$(cat "$STATE")" = "$cur" ] && exit 0
+
+T=$(mktemp -d)
+trap 'rm -rf "$T"' EXIT
+mkdir -p "$T/usr/lib/firmware/amdgpu"
+for f in $FILES; do
+    cp "$SRC/$f.bin" "$T/usr/lib/firmware/amdgpu/"
+done
+(cd "$T" && find usr | sort | cpio -o -H newc --quiet) > "$T/viola.cpio"
+
+cp -a "$E/initrd.img" "$E/initrd.img.noviola"
+base_size=$(stat -c %s "$E/initrd.img.noviola")
+padding=$(( (4 - (base_size % 4)) % 4 ))
+{
+    cat "$E/initrd.img.noviola"
+    if [ "$padding" -ne 0 ]; then
+        dd if=/dev/zero bs=1 count="$padding" status=none
+    fi
+    cat "$T/viola.cpio"
+} > "$E/initrd.img.new"
+mv "$E/initrd.img.new" "$E/initrd.img"
+
+sync
+mkdir -p "$(dirname "$STATE")"
+sha256sum "$E/initrd.img" | cut -d' ' -f1 > "$STATE"
+echo "PS5 Pro: Viola GPU firmware added to $E/initrd.img with $padding alignment byte(s); it is used from the next start with the loader"
