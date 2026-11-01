@@ -4,7 +4,7 @@
 
 This fork contains the PS5 Linux loader and initramfs workaround I used to activate the real **Viola** firmware path on a retail **PS5 Pro running firmware 11.60**.
 
-The working result changed the GPU from the 36-CU Cyan Skillfish fallback to the PS5 Pro's factory **60 active CUs**. This is not an overclock and does not use `ps5_cu_unlock`. In my testing it substantially increased GPU performance and stopped the repeated crashes/HDMI loss in GTA V Legacy, Manor Lords, and RV There Yet?
+The working result changed the GPU from the 36-CU Cyan Skillfish fallback to the PS5 Pro's factory **60 active CUs**. This is not an overclock and does not use `ps5_cu_unlock`. In my testing it substantially increased GPU performance and stopped the repeated crashes/HDMI loss in GTA V Legacy, Manor Lords, and RV There Yet? My later 007 First Light retests also ran without crashes: about 34 FPS in 4K Low cutscenes and 53–61 FPS at 1440p Ultra.
 
 ## Read this first
 
@@ -192,18 +192,41 @@ amdgpu 0000:20:00.0: SE 2, SH per SE 2, CU per SH 16, active_cu_number 60
 
 `RequestActiveWgp(30)` returned `-22`, but the GPU still exposed the correct factory topology of 30 WGPs / 60 active CUs.
 
-## What this fixed in my testing
+## Game testing — updated November 1, 2026
 
-| Before | After both fixes |
-| --- | --- |
-| Cyan Skillfish fallback | Viola firmware active |
-| 36 active CUs | 60 factory-active CUs |
-| Lower GPU performance | Substantially higher GPU performance |
-| GTA V Legacy repeatedly crashed/lost HDMI | 1440p, solid 60 FPS, reproduced driving test no longer crashes |
-| Manor Lords failed while starting a game | Fully working through the previous failure |
-| RV There Yet? failed while loading | Fully working through the previous failure |
+I tested this on my **retail PS5 Pro, PS5 system software 11.60, and Bazzite Deck OS v1.8.9**. The post-repair results below were recorded with both repairs active: the loader's correct 11.60 Viola offset and the four-byte-aligned initramfs archive. The kernel selected **Viola firmware with 60 active CUs**.
 
-The results above are from the tested PS5 Pro 11.60/Bazzite v1.8.9 system. They are not a guarantee for every game, image, or firmware version.
+My PS5 system software is still **11.60**. These repairs corrected Linux GPU firmware extraction and staging.
+
+### Games I retested after both repairs
+
+| Game | Resolution | Graphics preset | Observed frame rate | Before the repairs | After both repairs |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **007 First Light** | **4K · 3840 × 2160** | **Low** | **~34 FPS average in cutscenes** | Crashed during loading; lowering the resolution had not fixed it | ✅ **Working; no crashes in my retest** |
+| **007 First Light** | **1440p · 2560 × 1440** | **Ultra — everything set to Ultra** | **53–61 FPS** | Crashed during loading | ✅ **Working; no crashes in my retest** |
+| **Grand Theft Auto V Legacy** | **1440p · 2560 × 1440** | Not separately re-recorded after repair | **Solid ~60 FPS** | Repeated driving crash/HDMI loss after about 5 minutes; previously 1440p Very High at ~60 FPS with dips to 48 | ✅ **Smooth; no recurrence of the driving crash or HDMI loss in my retest** |
+| **Manor Lords** | Not recorded | Not recorded | Not recorded | Failed after **Start Game**, during loading | ✅ **Working through the previous failure point; no crashes in my retest** |
+| **RV There Yet?** | Not recorded | Not recorded | Not recorded | Failed while loading a game | ✅ **Working through the previous failure point; no crashes in my retest** |
+
+The 4K 007 figure is a **cutscene average**; the 1440p figure is the **observed range** in my retest. These are my on-screen readings; I did not record an exact duration for the post-repair tests.
+
+### Stable comparisons I had already confirmed
+
+These were already stable in my testing before the repairs; I am not counting them as newly fixed games.
+
+| Game / use | Recorded settings | Recorded frame rate | My stability result |
+| :--- | :--- | :--- | :--- |
+| **Grand Theft Auto IV** | Not recorded | Not recorded | ✅ **Long-term stability confirmed in my testing; zero issues** |
+| **Call of Duty: Black Ops III** | **Native 4K · 3840 × 2160; 100% internal render scale; 60-Hz output** | **51–60 FPS; ~56 FPS average** | ✅ **Long-term stability confirmed in my testing; zero issues** |
+| **Desktop mode / occasional web browsing** | Normal desktop use | Not applicable | ✅ **Works normally; no issues in that use** |
+
+### Earlier failure still awaiting a targeted retest
+
+| Game | Earlier failure | Post-repair status |
+| :--- | :--- | :--- |
+| **Grand Theft Auto V Enhanced** | Crashed around Michael's funeral sequence | ⏳ **I have not yet confirmed a post-repair retest of that scene** |
+
+The pre-repair GTA V failure logs contained a `gfx_0.0.0` timeout, failed MODE1 recovery, VRAM loss, and KIQ/KCQ/gfx resume errors. With the proper Viola firmware and 60 active CUs, the driving workload I reproduced no longer fails.
 
 ## Ubuntu status
 
@@ -506,15 +529,9 @@ The manual Bazzite script edit is temporary. Once the Deck OS developer aligns a
 
 ## Post-fix runtime and game results
 
-After both the loader fix and aligned initramfs were active:
+My current before-and-after tables, including 007 First Light at 4K Low and 1440p Ultra, are in [Game testing — updated November 1, 2026](#game-testing--updated-november-1-2026) above.
 
-| Game | Result |
-| --- | --- |
-| Grand Theft Auto V Legacy | 1440p, solid 60 FPS, substantially higher performance, and no recurrence of the previously reproducible driving crash/HDMI loss |
-| Manor Lords | Fully working through Start Game and the loading path that previously caused HDMI loss |
-| RV There Yet? | Fully working through the loading path that previously failed |
-
-Before the fixes, the captured GTA V failure contained a `gfx_0.0.0` timeout, failed MODE1 recovery, VRAM loss, and KIQ/KCQ/gfx resume errors. The same workload no longer fails with the real Viola firmware and 60 active CUs.
+The combined loader and initramfs corrections activated Viola firmware with 60 factory-active CUs. The previously reproduced GTA V Legacy driving workload no longer fails.
 
 ## Published test artifact
 
@@ -542,7 +559,7 @@ If this work is merged or included in project/release notes, please credit GitHu
 - providing the PS5 Pro hardware and performing the loader, rest-mode, wake, and Linux boot tests;
 - isolating the Bazzite Deck OS `newc` initramfs alignment bug and validating the two-byte correction on v1.8.9;
 - validating the eight reconstructed Viola files and the resulting 60-CU topology; and
-- completing the post-fix GTA V Legacy, Manor Lords, and RV There Yet? game tests.
+- completing the post-fix GTA V Legacy, Manor Lords, RV There Yet?, and 007 First Light game tests.
 
 ## Public evidence and reproduction
 
