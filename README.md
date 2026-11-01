@@ -27,7 +27,7 @@ These steps are for **PS5 Pro firmware 11.60 with Bazzite Deck OS v1.8.9**.
 
 ### 1. Download the tested loader
 
-Download the exact hardware-tested ELF:
+Download the exact hardware-tested ELF (this is a custom made ELF with fixes for 11.60 PS5 PRO ONLY):
 
 **[Download ps5-linux-loader.elf](https://github.com/mfoster978/ps5-linux-loader/releases/download/ps5-pro-11.60-viola-test-v1/ps5-linux-loader.elf)**
 
