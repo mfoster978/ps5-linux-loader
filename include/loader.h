@@ -1,6 +1,7 @@
 #ifndef LOADER_H
 #define LOADER_H
 #include "utils.h"
+#define FETCH_LINUX_FIRMWARE_INSTALLED 1
 
 void install_page(uintptr_t pml4, vm_offset_t va, vm_paddr_t pa, int bits);
 void pte_store(uintptr_t ptep, uint64_t pte);

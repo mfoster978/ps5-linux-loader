@@ -163,9 +163,14 @@ int fetch_linux(struct linux_info *info) {
     return -1;
   }
 
-  if (dump_device_firmwares(initrd_path) < 0) {
+  int firmware_ret = dump_device_firmwares(initrd_path);
+  if (firmware_ret < 0) {
     notify(
         "Something went wrong while dumping device firmwares - Continuing\n");
+  } else if (firmware_ret == DEVICE_FIRMWARE_INSTALLED) {
+    munmap(initrd, ALIGN_UP(initrd_size, PAGE_SIZE));
+    munmap(bzimage, ALIGN_UP(bzimage_size, PAGE_SIZE));
+    return FETCH_LINUX_FIRMWARE_INSTALLED;
   }
 
   size_t vram_size;

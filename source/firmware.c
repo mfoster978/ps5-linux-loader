@@ -411,6 +411,25 @@ write_failed:
   return -1;
 }
 
+static int ps5_pro_gpu_firmware_files_installed(const char *boot_dir) {
+  struct stat st;
+  char fw_path[512];
+  int ret;
+
+  for (size_t i = 0; i < ARRAY_COUNT(gpu_firmware_blobs); i++) {
+
+    ret = snprintf(fw_path, sizeof(fw_path), "%s/%s_%s.bin", boot_dir,
+                   PS5_PRO_GPU_FW_BOOT_PATH_BASE,
+                   gpu_firmware_blobs[i].name);
+    if (ret < 0 || (size_t)ret >= sizeof(fw_path))
+      return 0;
+    if (stat(fw_path, &st) < 0 || !S_ISREG(st.st_mode) || st.st_size == 0)
+      return 0;
+  }
+
+  return 1;
+}
+
 static int dump_ps5_pro_gpu_firmware(const char *boot_file_path) {
   char boot_dir[512];
 
@@ -486,11 +505,27 @@ static int dump_ps5_wifi_firmware(const char *boot_file_path) {
 
 int dump_device_firmwares(const char *boot_file_path) {
   int ret = dump_ps5_wifi_firmware(boot_file_path);
+  // The 11.60 offset table is shared by regular and Pro consoles.
+  if (sceKernelGetMainSocId() == 0x840fd0 &&
+      env_offset.PS5_PRO_GPU_FW_OFFSET != 0) {
+    if (fw == 0x1160) {
+      char boot_dir[512];
 
-  // Only PS5 Pro firmwares have a GPU firmware table offset.
-  if (env_offset.PS5_PRO_GPU_FW_OFFSET != 0 &&
-      dump_ps5_pro_gpu_firmware(boot_file_path) < 0)
-    ret = -1;
+      if (build_boot_dir(boot_file_path, boot_dir, sizeof(boot_dir)) < 0) {
+        notify("PS5 Pro GPU firmware dump path is too long\n");
+        return -1;
+      }
+
+      if (!ps5_pro_gpu_firmware_files_installed(boot_dir)) {
+        if (dump_ps5_pro_gpu_firmware(boot_file_path) < 0)
+          return -1;
+        sync();
+        return DEVICE_FIRMWARE_INSTALLED;
+      }
+    } else if (dump_ps5_pro_gpu_firmware(boot_file_path) < 0) {
+      ret = -1;
+    }
+  }
 
   return ret;
 }

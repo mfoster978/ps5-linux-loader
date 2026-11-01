@@ -27,7 +27,13 @@ int main(void) {
     return -1;
   }
 
-  if (fetch_linux(&linux_i)) {
+  int fetch_ret = fetch_linux(&linux_i);
+  if (fetch_ret == FETCH_LINUX_FIRMWARE_INSTALLED) {
+    notify("PS5 Pro GPU firmware installed and flushed. Run the loader again "
+           "to boot Linux.\n");
+    return 0;
+  }
+  if (fetch_ret) {
     notify("Something went wrong while installing linux files.\n");
     return -1;
   }
