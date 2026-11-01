@@ -27,11 +27,11 @@ These steps are specifically for **PS5 Pro firmware 11.60 with Bazzite Deck OS v
 
 ### 1. Download the hardware-tested ELF
 
-**[Download ps5-linux-loader.elf](https://github.com/mfoster978/ps5-linux-loader/releases/download/ps5-pro-11.60-viola-test-v1/ps5-linux-loader.elf)**
+**[Download ps5-linux-loader.elf](https://github.com/mfoster978/ps5-linux-loader/releases/download/ps5-pro-11.60-viola-test-v2/ps5-linux-loader.elf)**
 
 Release notes:
 
-https://github.com/mfoster978/ps5-linux-loader/releases/tag/ps5-pro-11.60-viola-test-v1
+https://github.com/mfoster978/ps5-linux-loader/releases/tag/ps5-pro-11.60-viola-test-v2
 
 Verify the file:
 
@@ -377,7 +377,7 @@ https://github.com/VivaLaVent/ps5-bazzite-deck/issues/27
 
 - Upstream PR and source diff: https://github.com/ps5-linux/ps5-linux-loader/pull/91
 - Minimal source commit: https://github.com/mfoster978/ps5-linux-loader/commit/55fc69fc6cbe38cec48024adefd1d49f5756a59d
-- Hardware-tested release: https://github.com/mfoster978/ps5-linux-loader/releases/tag/ps5-pro-11.60-viola-test-v1
+- Hardware-tested release: https://github.com/mfoster978/ps5-linux-loader/releases/tag/ps5-pro-11.60-viola-test-v2
 - Bazzite issue and runtime evidence: https://github.com/VivaLaVent/ps5-bazzite-deck/issues/27
 
 Testing and validation were performed by [@mfoster978](https://github.com/mfoster978).
