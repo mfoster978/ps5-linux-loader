@@ -57,17 +57,58 @@ Get-FileHash .\ps5-linux-loader.elf -Algorithm SHA256
 
 Do not continue if the hash differs.
 
-### 2. Install the temporary Bazzite initramfs alignment fix
+### 2. Add the ELF to Payload Manager once
 
-Do this while your current Linux fallback still boots. It fixes the Bazzite v1.8.9 script before the Viola files are added to `initrd.img`.
+Import or send the downloaded `ps5-linux-loader.elf` to the PS5 Payload Manager **one time** so it is saved there.
 
-Back up the current script and initrd:
+After it is saved, use the Payload Manager entry to start it. You do not need to keep uploading or sending the ELF from the PC.
+
+For every loader boot:
+
+1. cold boot into PS5 OS;
+2. start the jailbreak/ELF transport needed for Payload Manager;
+3. do **not** run etaHEN, kstuff, a debugger, HEN, or any unrelated payload; and
+4. select the saved `ps5-linux-loader.elf` entry in Payload Manager.
+
+The jailbreak/ELF loader and Payload Manager are the transport. The Viola loader ELF should be the only payload launched.
+
+### 3. First Payload Manager launch: create the eight files
+
+Start the saved `ps5-linux-loader.elf`.
+
+If any Viola file is missing, the loader:
+
+1. creates all eight files on the boot partition;
+2. calls `sync()`;
+3. tells you the files were installed; and
+4. exits before rest mode or Linux wake preparation.
+
+That is the expected first run. The Bazzite initramfs problem does **not** happen before the files exist. It happens when Bazzite first boots after these files have been created and its staging service appends them to `initrd.img`.
+
+If all eight files already exist and are nonempty, the loader silently skips all GPU table reads and firmware reconstruction. It does not display a “reusing” message.
+
+### 4. Launch the saved ELF again and boot Bazzite once
+
+Use Payload Manager to start the already-saved `ps5-linux-loader.elf` again. Do not upload it again and do not launch another payload.
+
+This boot still uses the old initrd, so Bazzite can start normally. During this running Bazzite session, v1.8.9 sees the newly created Viola files and runs `ps5-stage-viola-fw`.
+
+The original v1.8.9 script creates:
+
+- `/boot/efi/initrd.img.noviola`, the base initrd backup; and
+- a new `/boot/efi/initrd.img` with the Viola CPIO appended without the required boundary padding.
+
+The unaligned file does not break the Linux session that is already running because that session loaded the previous initrd before the service changed the file on disk. It would break the **next** boot if it is not repaired first.
+
+### 5. Repair and rebuild the on-disk initrd in that Bazzite session
+
+First preserve the current files:
 
 ```bash
-sudo cp -a /usr/local/sbin/ps5-stage-viola-fw \
-  /usr/local/sbin/ps5-stage-viola-fw.before-viola-alignment-fix
 sudo cp -a /boot/efi/initrd.img \
-  /boot/efi/initrd.img.before-viola-alignment-fix
+  /boot/efi/initrd.img.before-viola-alignment-repair
+sudo cp -a /usr/local/sbin/ps5-stage-viola-fw \
+  /usr/local/sbin/ps5-stage-viola-fw.before-alignment-repair
 ```
 
 Download and inspect the corrected script from this fork:
@@ -86,62 +127,52 @@ sudo install -m 0755 /tmp/ps5-stage-viola-fw \
   /usr/local/sbin/ps5-stage-viola-fw
 ```
 
-Power off Linux cleanly.
-
-### 3. Cold boot the PS5 and load only this ELF
-
-1. Cold boot into PS5 OS.
-2. Start the jailbreak/ELF loader needed to send a payload.
-3. Do **not** run etaHEN, kstuff, a debugger, HEN, or any unrelated payload in this boot session.
-4. Send only the downloaded `ps5-linux-loader.elf`.
-
-The jailbreak/ELF loader is the transport; the Viola loader ELF should be the only payload you run.
-
-#### What the first run should do
-
-If any Viola file is missing, the loader:
-
-1. creates all eight files;
-2. calls `sync()`;
-3. tells you the files were installed; and
-4. exits before rest mode or Linux wake preparation.
-
-This is expected. Run the **same ELF again**. Do not run a different payload.
-
-If all eight files already exist and are nonempty, the loader silently skips all GPU table reads and firmware reconstruction. It will not display a “reusing” message; it proceeds normally toward rest mode.
-
-### 4. Let Bazzite stage the files into the initramfs
-
-The next loader run boots Linux with the current initrd. The corrected Bazzite service then creates an aligned `newc` archive containing the eight Viola files.
-
-After Linux starts, run the corrected staging script once to make the result explicit:
+Restore the unmodified base initrd that the original service saved, then run the corrected script:
 
 ```bash
+sudo cp -a /boot/efi/initrd.img.noviola /boot/efi/initrd.img
 sudo /usr/local/sbin/ps5-stage-viola-fw
 sync
 ```
 
-Check its service log:
+For the exact v1.8.9 base tested here, the rebuilt file needs two zero bytes before the appended CPIO. Verify the boundary:
 
 ```bash
-journalctl -u ps5-stage-viola-fw --no-pager
+E=/boot/efi
+base_size=$(stat -c %s "$E/initrd.img.noviola")
+padding=$(( (4 - (base_size % 4)) % 4 ))
+offset=$((base_size + padding))
+printf 'base=%s padding=%s cpio_offset=%s\n' \
+  "$base_size" "$padding" "$offset"
+dd if="$E/initrd.img" bs=1 skip="$offset" count=6 status=none
+printf '\n'
+sha256sum "$E/initrd.img"
 ```
 
-The script may exit silently if the service already staged the exact current initrd.
+The tested v1.8.9 layout reports:
 
-Power off Linux cleanly after staging.
+```text
+base=100924166
+padding=2
+cpio_offset=100924168
+070701
+```
 
-### 5. Boot with Viola active
+Power off Bazzite cleanly after the aligned initrd has been created.
+
+### 6. Boot with Viola using the saved Payload Manager entry
 
 1. Cold boot the PS5 again.
-2. Start only the jailbreak/ELF transport.
+2. Start the jailbreak/ELF transport and Payload Manager.
 3. Do not run any other payload.
-4. Send the same `ps5-linux-loader.elf`.
+4. Select the already-saved `ps5-linux-loader.elf`.
 5. Let the PS5 enter rest mode.
 6. Wait for the orange light to stop blinking and become steady.
 7. Wake the PS5 to Linux.
 
-### 6. Confirm 60 active CUs
+You do not need to upload the ELF again. Use the saved Payload Manager entry for later Linux boots.
+
+### 7. Confirm 60 active CUs
 
 In Linux:
 
